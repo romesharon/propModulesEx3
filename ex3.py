@@ -1,7 +1,6 @@
 from collections import Counter
 from datetime import datetime
 import pickle
-
 import numpy as np
 
 RARE_WORD = 3
@@ -63,7 +62,7 @@ class EM(object):
     def train(self):
         current = np.PINF
         prev = np.PINF
-        check_log_likelihood = []
+        check_guess = []
         check_underflow_e = []
         i = 0
         while prev - current > EPSILON or current == np.PINF:
@@ -81,8 +80,8 @@ class EM(object):
             current = np.power(np.e, (-1 / np.sum(self.__n_t)) * underflow_e)
 
             check_underflow_e.append(underflow_e)
-            check_log_likelihood.append(current)
-        print(check_log_likelihood)
+            check_guess.append(current)
+        print(check_guess)
         print(check_underflow_e)
 
     def underflow_e_step(self, z, m):
@@ -92,6 +91,28 @@ class EM(object):
                 if z[t][i] - m[t] >= K * -1:
                     result[t] += np.exp(z[t][i] - m[t])
         return np.sum(np.log(result) + m)
+
+    def calculate_accuracy(self):
+        max_vector = np.argmax(self.__w_t_i, axis=1)
+        cluster2topic = self.get_number_of_topics_per_cluster(max_vector)
+        correct = 0
+        for document_index, document in enumerate(self.__parse_corpus):
+            topic = cluster2topic[max_vector[document_index]]
+            if topic in self.__parse_corpus[document][0]:
+                correct += 1
+        return correct / len(self.__parse_corpus)
+
+    def get_number_of_topics_per_cluster(self, max_vector):
+        cluster2topic = {i: Counter() for i, _ in enumerate(self.__clusters)}
+        for document_index, document in enumerate(self.__parse_corpus):
+            cluster2topic[max_vector[document_index]].update(self.__parse_corpus[document][0])
+
+        cluster2most_common_topic = dict()
+        for cluster_index in cluster2topic:
+            most_common_topic = cluster2topic[cluster_index].most_common(1)
+            cluster2most_common_topic[cluster_index] = most_common_topic[0][0] if len(most_common_topic) > 0 else None
+
+        return cluster2most_common_topic
 
 
 def get_rare_words(content):
@@ -127,6 +148,7 @@ if __name__ == "__main__":
         clusters = import_clusters()
         em = EM(loaded_dict, clusters)
         em.train()
+        print(em.calculate_accuracy())
     # with open(CORPUS, 'r') as file:
     #     content = file.read()
     #     rare_words = get_rare_words(content)
