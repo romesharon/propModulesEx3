@@ -2,11 +2,12 @@ from collections import Counter
 from datetime import datetime
 import pickle
 import numpy as np
+import matplotlib.pyplot as plt
 
 RARE_WORD = 3
 EPSILON = 0.1
 LAMBDA = 1
-K = 5
+K = 10
 CORPUS = "dataset/develop.txt"
 RESULTS = "results.pkl"
 CLUSTERS = "dataset/topics.txt"
@@ -63,11 +64,9 @@ class EM(object):
         current = np.PINF
         prev = np.PINF
         check_guess = []
-        check_underflow_e = []
+        check_log_likelihood = []
         i = 0
         while prev - current > EPSILON or current == np.PINF:
-            print(i)
-            print(current)
             i += 1
             z = self.calculate_z()
             m = self.calculate_m(z)
@@ -76,15 +75,18 @@ class EM(object):
             prev = current
 
             # calculate log likelihood
-            underflow_e = self.underflow_e_step(z, m)
-            current = np.power(np.e, (-1 / np.sum(self.__n_t)) * underflow_e)
+            log_likelihood = self.log_likelihood_step(z, m)
+            current = np.power(np.e, (-1 / np.sum(self.__n_t)) * log_likelihood)
 
-            check_underflow_e.append(underflow_e)
+            check_log_likelihood.append(log_likelihood)
             check_guess.append(current)
-        print(check_guess)
-        print(check_underflow_e)
+            print(log_likelihood)
+        plt.plot(range(len(check_log_likelihood)), check_log_likelihood)
+        plt.show()
+        plt.plot(range(len(check_guess)), check_guess)
+        plt.show()
 
-    def underflow_e_step(self, z, m):
+    def log_likelihood_step(self, z, m):
         result = np.zeros((len(self.__parse_corpus), 1))
         for t, _ in enumerate(self.__parse_corpus):
             for i, _ in enumerate(self.__clusters):
@@ -109,6 +111,8 @@ class EM(object):
 
         cluster2most_common_topic = dict()
         for cluster_index in cluster2topic:
+            print(cluster_index)
+            print(cluster2topic[cluster_index])
             most_common_topic = cluster2topic[cluster_index].most_common(1)
             cluster2most_common_topic[cluster_index] = most_common_topic[0][0] if len(most_common_topic) > 0 else None
 
